@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Run OCaml Wasm (ZIP Upload)</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: "Segoe UI", sans-serif;
+            background: #f4f4f8;
+            margin: 0;
+            padding: 2em;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2em;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5em;
+        }
+
+        form {
+            margin-bottom: 2em;
+        }
+
+        /* Spinner styles */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+            /* hidden by default */
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .visible {
+            display: block;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin: 1em 0 0.5em;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background-color: #fafafa;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 1.5em;
+            background-color: #0078d7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #005fa3;
+        }
+
+        .add-btn {
+            margin-top: 1em;
+            background-color: #28a745;
+        }
+
+        .add-btn:hover {
+            background-color: #1e7e34;
+        }
+
+        pre {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 1em;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-top: 1em;
+            white-space: pre;
+            /* ensures verbatim rendering */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>OCaml → WebAssembly Run Demo </h1>
+
+        <p>Upload a ZIP file containing your OCaml-generated WebAssembly files (.wasm.js + .wasm).</p>
+
+        <!-- File input -->
+        <input type="file" id="zipInput" accept=".zip"><br>
+        <button id="runBtn">Load Wasm</button>
+        <button id="statusButton">Run Wasm</button>
+
+        <pre id="output"></pre>
+
+        <label for="waveform">Wave Signal:</label>
+        <canvas id="waveform" width="600" height="200" style="border:1px solid #ccc;"></canvas>
+        <button id="drawWaveBtn">Draw Wave Signal</button>
+
+
+        <footer style="text-align: center; margin-top: 2em; color: #666;">
+            &copy; 2025 The<a href="https://github.com/anmaped/rmtld3synth" target="_blank" rel="noopener noreferrer"
+                style="margin-left:0.5em;color:#0078d7;text-decoration:none;">rmtld3synth</a> Team. All rights reserved.
+        </footer>
+    </div>
+
+
+    <script>const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+
+        function drawWaveSignal({ type = 'sine', amplitude = 50, frequency = 0.02, phase = 0 } = {}) {
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+
+            for (let x = 0; x < width; x++) {
+                let y = 0;
+                const t = x;
+
+                switch (type) {
+                    case 'sine':
+                        y = amplitude * Math.sin(2 * Math.PI * frequency * t + phase);
+                        break;
+                    case 'square':
+                        y = amplitude * (Math.sin(2 * Math.PI * frequency * t + phase) >= 0 ? 1 : -1);
+                        break;
+                    case 'triangle':
+                        y = (2 * amplitude / Math.PI) * Math.asin(Math.sin(2 * Math.PI * frequency * t + phase));
+                        break;
+                    case 'sawtooth':
+                        y = (2 * amplitude / Math.PI) * (t * frequency * Math.PI % (2 * Math.PI) - Math.PI);
+                        break;
+                    default:
+                        y = 0;
+                }
+
+                ctx.lineTo(x, height / 2 - y);
+            }
+
+            ctx.strokeStyle = '#0078d7';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        document.getElementById('drawWaveBtn').addEventListener('click', () => {
+            drawWaveSignal({ type: 'square', amplitude: 50, frequency: 0.05 });
+        });
+
+    </script>
+    <script>
+        const runButton = document.getElementById('runBtn');
+        const zipInput = document.getElementById('zipInput');
+        const outputEl = document.getElementById('output');
+
+        let wasmExports = null;
+
+        async function runWasmFromZip() {
+            const file = zipInput.files[0];
+            if (!file) {
+                outputEl.textContent = 'Please upload a ZIP file first.';
+                return;
+            }
+
+            outputEl.textContent = 'Extracting ZIP...\n';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
+
+                // Find the .wasm.js file in the zip
+                const jsFiles = Object.keys(zip.files).filter(name => name.endsWith('.wasm.js'));
+                if (jsFiles.length === 0) {
+                    outputEl.textContent += 'No .wasm.js file found in ZIP.\n';
+                    return;
+                }
+
+                const jsFileName = jsFiles[0];
+                outputEl.textContent += `Found ${jsFileName}.\n`;
+
+                const jsContent = await zip.file(jsFileName).async('text');
+
+                // Handle .wasm file(s) by creating blob URLs for them
+                const wasmFiles = Object.keys(zip.files).filter(name => name.endsWith('.wasm'));
+                const wasmURLs = {};
+                outputEl.textContent += `Found ${wasmFiles.length} .wasm file(s).\n`;
+                wasmFiles.forEach(file => {
+                    outputEl.textContent += ` - ${file}\n`;
+                });
+
+                for (const wasmFileName of wasmFiles) {
+                    const wasmData = await zip.file(wasmFileName).async('uint8array');
+                    const wasmBlob = new Blob([wasmData], { type: 'application/wasm' });
+                    wasmURLs[wasmFileName] = URL.createObjectURL(wasmBlob);
+                }
+
+                // Override fetch to redirect .wasm requests to blob URLs
+                const originalFetch = window.fetch;
+                window.fetch = async function (resource, options) {
+                    let urlStr = resource;
+                    if (resource instanceof Request) urlStr = resource.url;
+
+                    if (wasmURLs[urlStr]) {
+                        outputEl.textContent += `Fetching ${urlStr} from blob URL ${wasmURLs[urlStr]}\n`;
+                        // Redirect fetch to the blob URL
+                        return originalFetch(wasmURLs[urlStr], options);
+                    }
+
+                    return originalFetch(resource, options);
+                };
+
+                // Create a blob URL for the JS glue
+                const jsBlob = new Blob([jsContent], { type: 'application/javascript' });
+                const jsURL = URL.createObjectURL(jsBlob);
+
+                // Dynamically import and initialize
+                const module = await import(jsURL);
+
+                if (module.default) {
+                    wasmExports = await module.default();
+                } else {
+                    wasmExports = module;
+                }
+
+                if (wasmExports.main) {
+                    wasmExports.main();
+                    outputEl.textContent += 'Wasm module executed successfully.\n';
+                } else {
+                    outputEl.textContent += 'No exported main() found.\n';
+                }
+
+                // Cleanup
+                URL.revokeObjectURL(jsURL);
+                for (const url of Object.values(wasmURLs)) {
+                    URL.revokeObjectURL(url);
+                }
+
+            } catch (err) {
+                outputEl.textContent += 'Error: ' + err + '\n';
+                console.error(err);
+            }
+        }
+
+        runButton.addEventListener('click', runWasmFromZip);
+
+        async function runStatus() {
+            if (!wasmExports) {
+                outputEl.textContent += 'Wasm module not loaded or no status() export.\n';
+                return;
+            }
+            console.log(myMathLib.main(''));
+            console.log(myMathLib.add(3, 4));
+        }
+
+        statusButton.addEventListener('click', runStatus);
+    </script>
+</body>
+
+</html>

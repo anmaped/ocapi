@@ -1,0 +1,11 @@
+{
+    "name": "ocaml-wasm-compiler-devcontainer",
+    "image": "docker.io/ocaml/opam:debian-ocaml-5.2",
+    "workspaceFolder": "/workspaces",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces,type=bind,Z",
+    "postCreateCommand": "sudo apt update && sudo apt install -y m4 make gcc pkg-config libev-dev libgmp-dev libssl-dev docker-cli && opam update && eval $(opam env) && opam install -y dream yojson lwt",
+    "extensions": ["ocamllabs.ocaml-platform"],
+    "mounts": [
+        "source=/run/user/1000/podman/podman.sock,target=/var/run/docker.sock,type=bind,Z"
+    ],
+}
