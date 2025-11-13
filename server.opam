@@ -1,0 +1,53 @@
+opam-version: "2.0"
+name: "ocapi"
+version: "0.1.0"
+synopsis: "Container-based OCaml-to-WebAssembly compilation API built with Dream"
+description: """
+OCAPI is a container-based web API built in OCaml, which compiles OCaml programs to WebAssembly (`.wasm`) on demand.  
+It uses the Dream framework to provide a secure HTTP endpoint that accepts OCaml source code, spins up a sandboxed Docker/Podman container to compile the code, and then returns either compiled WebAssembly (with JavaScript glue) or compilation errors.  
+Ideal for building online OCaml-to-Wasm services, code playgrounds or secure remote compilation endpoints.
+"""
+
+maintainer: ["The rmtld3synth Development Team <dev@rmtld3synth.org>"]
+authors: ["The rmtld3synth Development Team"]
+license: "MIT"
+
+homepage: "https://github.com/anmaped/ocapi"
+bug-reports: "https://github.com/anmaped/ocapi/issues"
+dev-repo: "git+https://github.com/anmaped/ocapi.git"
+
+depends: [
+  "ocaml"   {>= "5.2"}
+  "dune"    {>= "3.0"}
+  "dream"
+  "lwt"
+  "yojson"
+  "ppx_yojson_conv"  # optional, if you serialize/deserialize JSON types
+  "fmt"              # optional, for pretty-printing and logging
+]
+
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
+
+run-test: [
+  ["dune" "runtest" "-p" name "-j" jobs]
+]
+
+install: [
+  ["dune" "install" "-p" name "--prefix" prefix]
+]
+
+tags: [
+  "web"
+  "server"
+  "api"
+  "ocaml"
+  "wasm"
+  "webassembly"
+  "docker"
+  "dream"
+  "compiler"
+  "sandbox"
+]
+

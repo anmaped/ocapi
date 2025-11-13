@@ -14,7 +14,7 @@ let compile_in_docker code =
   let cmd =
     sprintf
       "cat %s | docker run --rm -i --cpus=0.5 --memory=256m --network=none \
-       --pids-limit=50 ocaml-wasm-compiler 'cat > input.ml && eval \"$(opam \
+       --pids-limit=50 ghcr.io/anmaped/ocapi-sandbox:latest 'cat > input.ml && eval \"$(opam \
        env)\" && dune build --profile release ./input.bc.wasm.js && cd _build/default/ && zip -r archive_name.zip ./ -x \".*/*\" -x \"*-jsoo\" -x \"*.ml\" -x \"*.mli\" && cat \
        archive_name.zip ' > %s"
       ml_path wasm_path
