@@ -36,7 +36,7 @@ ls $XDG_RUNTIME_DIR/podman/podman.sock
 Now, run the prebuilt image from the GitHub Container Registry (ghcr.io/anmaped/ocapi):
 
 ```
-podman run --rm -d --security-opt label=disable --name ocapi-container -p 8080:8080 --net host -v /run/user/1000/podman/podman.sock:/var/run/docker.sock:Z ghcr.io/anmaped/ocapi:latest
+podman run --rm -d --security-opt label=disable --name ocapi-container -p 8080:8080 --net host -v /run/user/1000/podman/podman.sock:/var/run/docker.sock ghcr.io/anmaped/ocapi:latest
 ```
 
 Alternatively, you can build the OCAPI server locally using Podman with the following command:

@@ -28,4 +28,4 @@ let () =
       ; Dream.get "/run" (Dream.from_filesystem "static" "run.html") ]
     |> Dream.logger
   in
-  Dream.run app
+  Dream.run ~interface:"0.0.0.0" app
