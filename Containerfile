@@ -7,6 +7,10 @@ RUN apt-get update -y && \
         m4 make gcc pkg-config libev-dev libgmp-dev libssl-dev docker-cli && \
     rm -rf /var/lib/apt/lists/*
 
+# Add opam user to docker group (999) to allow socket access
+RUN groupadd -r -g 999 docker
+RUN usermod -a -G docker opam
+
 # Switch back to the opam user for package installation
 USER opam
 WORKDIR /home/opam/app

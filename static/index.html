@@ -232,7 +232,7 @@ let _ =
             try {
                 const formData = new FormData(form);
 
-                const response = await fetch('/compile', {
+                const response = await fetch('compile', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
