@@ -20,17 +20,22 @@ let compile_handler request =
         Dream.json ~status:`Bad_Request
           (Printf.sprintf {|{"error": "%s"}|} err)
 
+let serve_favicon _req =
+  Lwt_io.(with_file ~mode:Input "favicon.ico" read)
+  >>= fun data ->
+  Dream.respond ~headers:[("Content-Type", "image/x-icon")] data
+
 let () =
   let app =
     Dream.router
-      [ Dream.get "/" (Dream.from_filesystem "static" "index.html")
+      [ Dream.get "/favicon.ico" serve_favicon
+      ; Dream.get "/" (Dream.from_filesystem "static" "index.html")
       ; Dream.post "/compile" compile_handler
       ; Dream.get "/run" (Dream.from_filesystem "static" "run.html")
       ; Dream.get "/doc" (Dream.from_filesystem "static" "doc.html")
       ; Dream.get "/ocapi.css" (Dream.from_filesystem "static" "ocapi.css")
       ; Dream.get "/examples/rmtld3synth_simple_monitor.ml"
-          (Dream.from_filesystem "unittest"
-             "rmtld3synth_simple_monitor.ml")
+          (Dream.from_filesystem "unittest" "rmtld3synth_simple_monitor.ml")
       ]
     |> Dream.logger
   in
