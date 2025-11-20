@@ -1,0 +1,62 @@
+:root {
+    --bg: #f4f6fa;
+    --fg: #1d2330;
+    --accent: #654FF0;
+    --accent-alt: #3C873A;
+    --border: #d8dce3;
+    --danger: #c0392b;
+    --code-bg: #272b33;
+    --code-fg: #f8f8f2;
+    --focus: #ffbf47;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover,
+a:focus {
+    text-decoration: underline;
+}
+
+
+header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: .75rem 1.25rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+nav a {
+    margin-right: 1rem;
+    font-weight: 500;
+}
+
+nav a[aria-current="page"] {
+    color: var(--accent-alt);
+}
+
+footer {
+    text-align: center;
+    padding: 2.5rem 1rem 3rem;
+    font-size: .8rem;
+    color: #566;
+}

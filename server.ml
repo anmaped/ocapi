@@ -23,9 +23,15 @@ let compile_handler request =
 let () =
   let app =
     Dream.router
-      [ Dream.post "/compile" compile_handler
-      ; Dream.get "/" (Dream.from_filesystem "static" "index.html")
-      ; Dream.get "/run" (Dream.from_filesystem "static" "run.html") ]
+      [ Dream.get "/" (Dream.from_filesystem "static" "index.html")
+      ; Dream.post "/compile" compile_handler
+      ; Dream.get "/run" (Dream.from_filesystem "static" "run.html")
+      ; Dream.get "/doc" (Dream.from_filesystem "static" "doc.html")
+      ; Dream.get "/ocapi.css" (Dream.from_filesystem "static" "ocapi.css")
+      ; Dream.get "/examples/rmtld3synth_simple_monitor.ml"
+          (Dream.from_filesystem "unittest"
+             "rmtld3synth_simple_monitor.ml")
+      ]
     |> Dream.logger
   in
   Dream.run ~interface:"0.0.0.0" app

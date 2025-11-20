@@ -3,30 +3,42 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Run OCaml Wasm (ZIP Upload)</title>
+    <title>OCAPI Run · OCaml → WebAssembly Compiler API</title>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <link rel="stylesheet" href="ocapi.css">
     <style>
-        body {
-            font-family: "Segoe UI", sans-serif;
-            background: #f4f4f8;
-            margin: 0;
-            padding: 2em;
+        /* Make the parent container a flex container */
+        .flex-container {
             display: flex;
-            justify-content: center;
+            gap: 1rem;
+            /* space between the two containers */
+            align-items: flex-start;
+            /* align the tops */
+            flex-wrap: wrap;
+            /* wrap on smaller screens */
+            padding: 1em;
+
         }
 
         .container {
             background: white;
-            padding: 2em;
+            padding: 0em 2em 1.5em 2em;
             border-radius: 10px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            max-width: 700px;
-            width: 100%;
         }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 1.5em;
+        /* Assign custom widths */
+        .container.main {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .stack.right {
+            flex: 3;
+            display: flex;
+            gap: 1rem;
+            flex-direction: column;
+            min-width: 250px;
         }
 
         form {
@@ -72,12 +84,13 @@
 
         textarea {
             width: 100%;
-            min-height: 200px;
+            min-height: 100px;
             font-family: monospace;
             font-size: 14px;
-            padding: 10px;
+            padding: 12px 14px;
             border-radius: 6px;
             border: 1px solid #ccc;
+            box-sizing: border-box;
             background-color: #fafafa;
             resize: vertical;
         }
@@ -117,79 +130,509 @@
             white-space: pre;
             /* ensures verbatim rendering */
         }
+
+        #waveform {
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 6px;
+        }
+
+        #tooltip {
+            position: absolute;
+            padding: 8px 8px;
+            background: #333;
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            display: none;
+            font-size: 13px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 30%;
+            border: none;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s ease;
+            margin-top: 0px;
+            padding: 0px;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(0, 0, 0, 0.85);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+
+        #waveform2 {
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 6px;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>OCaml → WebAssembly Run Demo </h1>
+    <header role="banner">
+        <strong>🦒 OCAPI</strong>
+        <nav aria-label="Primary">
+            <a href="/">Compile</a>
+            <a href="/run" aria-current="page">Run</a>
+            <a href="/doc">Docs</a>
+            <a href="https://github.com/anmaped/ocapi" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
+    </header>
 
-        <p>Upload a ZIP file containing your OCaml-generated WebAssembly files (.wasm.js + .wasm).</p>
+    <div class="flex-container">
 
-        <!-- File input -->
-        <input type="file" id="zipInput" accept=".zip"><br>
-        <button id="runBtn">Load Wasm</button>
-        <button id="statusButton">Run Wasm</button>
+        <div class="container main">
+            <h2>Run OCaml Programs in WebAssembly</h2>
+            <a href="https://ocaml.org/" target="_blank">
+                <img src="https://img.shields.io/badge/OCaml-3C873A?logo=ocaml&logoColor=white" alt="OCaml Badge" />
+            </a><a href="https://webassembly.org/" target="_blank">
+                <img src="https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=white"
+                    alt="WebAssembly Badge" />
+            </a>
 
-        <pre id="output"></pre>
+            <p>Upload a ZIP file containing your OCaml-generated WebAssembly files (.wasm.js + .wasm).</p>
 
-        <label for="waveform">Wave Signal:</label>
-        <canvas id="waveform" width="600" height="200" style="border:1px solid #ccc;"></canvas>
-        <button id="drawWaveBtn">Draw Wave Signal</button>
+            <!-- File input -->
+            <input type="file" id="zipInput" accept=".zip"><br>
+            <button id="runBtn">Load Wasm</button>
+            <button id="statusButton">Run Wasm</button>
 
+            <p>Need help compiling? See the <a href="doc" target="_blank">Ocapi documentation</a>.</p>
 
-        <footer style="text-align: center; margin-top: 2em; color: #666;">
-            &copy; 2025 The<a href="https://github.com/anmaped/rmtld3synth" target="_blank" rel="noopener noreferrer"
-                style="margin-left:0.5em;color:#0078d7;text-decoration:none;">rmtld3synth</a> Team. All rights reserved.
-        </footer>
+        </div>
+
+        <div class="stack right">
+            <div class="container hidden">
+                <h2>Waveform Visualization - Input Trace</h2>
+                <div class="canvas-wrapper">
+                    <canvas id="waveform" height="200"></canvas>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoomInBtn">+</button>
+                        <button class="zoom-btn" id="zoomOutBtn">−</button>
+                    </div>
+                </div>
+                <div id="tooltip"></div>
+            </div>
+            <div class="container hidden">
+                <h2>Input JSON Trace</h2>
+                <textarea id="traceInput"></textarea>
+            </div>
+            <div class="container">
+                <h2>Console</h2>
+                <pre id="output"></pre>
+            </div>
+            <div class="container hidden">
+                <h2>Waveform Visualization - Veredict</h2>
+                <div class="canvas-wrapper">
+                    <canvas id="waveform2" height="200"></canvas>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoomInBtn">+</button>
+                        <button class="zoom-btn" id="zoomOutBtn">−</button>
+                    </div>
+                </div>
+                <div id="tooltip2"></div>
+            </div>
+        </div>
     </div>
+    <footer role="contentinfo">© <span id="year"></span> The <a href="https://github.com/anmaped/rmtld3synth"
+            target="_blank" rel="noopener noreferrer">rmtld3synth</a> Team · All rights
+        reserved.</footer>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
 
+    <script>
+        const trace = [
+            ["a", 0.], ["c", 1.], ["p", 2.], ["p", 3.], ["p", 4.],
+            ["q", 5.], ["p", 6.], ["p", 7.], ["p", 8.], ["p", 14.], ["a", 15.], ["c", 16.], ["p", 17.], ["p", 18.], ["p", 19.],
+            ["q", 20.], ["p", 21.], ["p", 22.], ["p", 23.], ["p", 30.]
+        ];
+        document.getElementById("traceInput").value = JSON.stringify(trace);
 
-    <script>const canvas = document.getElementById('waveform');
-        const ctx = canvas.getContext('2d');
-
-        function drawWaveSignal({ type = 'sine', amplitude = 50, frequency = 0.02, phase = 0 } = {}) {
-            const width = canvas.width;
-            const height = canvas.height;
-            ctx.clearRect(0, 0, width, height);
-
-            ctx.beginPath();
-            ctx.moveTo(0, height / 2);
-
-            for (let x = 0; x < width; x++) {
-                let y = 0;
-                const t = x;
-
-                switch (type) {
-                    case 'sine':
-                        y = amplitude * Math.sin(2 * Math.PI * frequency * t + phase);
-                        break;
-                    case 'square':
-                        y = amplitude * (Math.sin(2 * Math.PI * frequency * t + phase) >= 0 ? 1 : -1);
-                        break;
-                    case 'triangle':
-                        y = (2 * amplitude / Math.PI) * Math.asin(Math.sin(2 * Math.PI * frequency * t + phase));
-                        break;
-                    case 'sawtooth':
-                        y = (2 * amplitude / Math.PI) * (t * frequency * Math.PI % (2 * Math.PI) - Math.PI);
-                        break;
-                    default:
-                        y = 0;
-                }
-
-                ctx.lineTo(x, height / 2 - y);
-            }
-
-            ctx.strokeStyle = '#0078d7';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-
-        document.getElementById('drawWaveBtn').addEventListener('click', () => {
-            drawWaveSignal({ type: 'square', amplitude: 50, frequency: 0.05 });
+        let timeout;
+        traceInput.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                console.log("User stopped typing");
+                window.dispatchEvent(new Event('resize'));
+            }, 300);
         });
 
     </script>
+
+    <script>
+        const canvas = document.getElementById("waveform");
+        function resizeCanvas() {
+            // Adjust canvas width based on parent width minus 64px
+            canvas.width = canvas.clientWidth;   // set internal resolution
+            console.log("Resized canvas to width:", canvas.width);
+
+            // Optionally, adjust height similarly or maintain aspect ratio
+            // canvas.height = canvas.parentElement.offsetHeight - 64;
+
+            // Set the CSS size to match (so it fills the space)
+            //canvas.style.width = canvas.width + 'px';
+            //canvas.style.height = canvas.height + 'px';
+
+            drawWaveform();
+        }
+
+        // Update canvas size whenever the window is resized
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initial resize
+        window.addEventListener('load', () => resizeCanvas());
+        window.addEventListener('load', () => window.dispatchEvent(new Event('resize')));
+
+
+        const ctx = canvas.getContext("2d");
+        const tooltip = document.getElementById("tooltip");
+
+        // Auto-build stateMap and stateColors from current trace
+        let stateMap = {};
+        let stateColors = {};
+
+        function rebuildStateMaps(trace) {
+            const states = [...new Set(trace.map(([s]) => s))];
+
+            stateMap = {};
+            stateColors = {};
+
+            if (states.length === 1) {
+                stateMap[states[0]] = canvas.height / 2;
+                stateColors[states[0]] = "hsla(0,70%,70%,0.3)";
+                return;
+            }
+
+            const topMargin = 15;
+            const bottomMargin = 20;
+            const drawable = canvas.height - topMargin - bottomMargin;
+            const step = drawable / (states.length - 1);
+
+            states.forEach((s, i) => {
+                // Place states from bottom to top (like original order a,c,p,q mapped downward)
+                stateMap[s] = bottomMargin + (drawable - i * step);
+                stateColors[s] = `hsla(${Math.round((i * 360) / states.length)},70%,70%,0.3)`;
+            });
+        }
+
+        // Zoom state
+        let scale = 1; // current zoom
+        const scaleFactor = 1.2; // zoom multiplier per step
+
+        // Mouse wheel zoom
+        canvas.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            if (event.deltaY < 0) {
+                // Zoom in
+                scale *= scaleFactor;
+            } else {
+                // Zoom out
+                scale /= scaleFactor;
+            }
+            console.log("Zoom scale:", scale);
+            drawWaveform();
+        });
+
+        // Button zoom
+        document.getElementById("zoomInBtn").addEventListener("click", () => {
+            scale *= scaleFactor;
+            drawWaveform();
+        });
+        document.getElementById("zoomOutBtn").addEventListener("click", () => {
+            scale /= scaleFactor;
+            drawWaveform();
+        });
+
+        // Panning state
+        let offsetX = 0;
+        let offsetY = 0;
+        let isPanning = false;
+        let startX, startY;
+        let currentVirtualWidth = 0;
+        let showScrollbars = false;
+        let scrollbarTimeout = null;
+
+        canvas.addEventListener("mousedown", (e) => {
+            isPanning = true;
+            startX = e.clientX - offsetX;
+            startY = e.clientY - offsetY;
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+            if (isPanning) {
+                offsetX = e.clientX - startX;
+                offsetX = offsetX < canvas.width - currentVirtualWidth ? canvas.width - currentVirtualWidth : offsetX; // prevent panning right beyond 0
+                offsetX = offsetX >= 0 ? 0 : offsetX; // prevent panning left beyond 0
+                offsetY = e.clientY - startY;
+                drawWaveform();
+            }
+        });
+
+        canvas.addEventListener("mouseup", () => isPanning = false);
+        canvas.addEventListener("mouseleave", () => isPanning = false);
+
+        canvas.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {        // 1-finger pan
+                isPanning = true;
+                startX = e.touches[0].clientX - offsetX;
+                startY = e.touches[0].clientY - offsetY;
+            }
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+            if (!isPanning) return;
+            offsetX = e.touches[0].clientX - startX;
+            offsetX = offsetX < canvas.width - currentVirtualWidth ? canvas.width - currentVirtualWidth : offsetX; // prevent panning right beyond 0
+            offsetX = offsetX >= 0 ? 0 : offsetX; // prevent panning left beyond 0
+            offsetY = e.touches[0].clientY - startY;
+            drawWaveform();
+            e.preventDefault(); // Prevent scrolling
+        }, { passive: false });
+
+        canvas.addEventListener("touchend", () => isPanning = false);
+        canvas.addEventListener("touchcancel", () => isPanning = false);
+
+        function drawWaveform() {
+            // Trace data
+            const trace = JSON.parse(document.getElementById("traceInput").value);
+
+            rebuildStateMaps(trace);
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            currentVirtualWidth = 0;
+
+            ctx.save(); // save state
+            ctx.translate(offsetX, 0); // apply panning
+
+            // Scale x-axis proportionally to time
+            const maxTime = Math.max(...trace.map(t => t[1]));
+            const scaleX = (canvas.width / maxTime) * scale;
+
+            // Draw vertical grid for time markers
+            ctx.strokeStyle = "#eee";
+            ctx.lineWidth = 1;
+            ctx.fillStyle = "#000";
+            ctx.font = "10px Arial";
+            for (let t = 0; t <= maxTime; t += 1) {
+                const x = t * scaleX;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+                ctx.fillText(t.toString(), x + 2, canvas.height);
+            }
+
+            // Draw colored state bands
+            for (let i = 0; i < trace.length - 1; i++) {
+                const [state, time] = trace[i];
+                const nextTime = trace[i + 1][1];
+                const xStart = time * scaleX;
+                const width = (nextTime - time) * scaleX;
+                currentVirtualWidth += width;
+                ctx.fillStyle = stateColors[state] || "rgba(200,200,200,0.3)";
+                ctx.fillRect(xStart, 0, width, canvas.height);
+            }
+
+            // Highlight **idle regions**: when the state does not change for more than 1 time unit
+            ctx.fillStyle = "rgba(200, 200, 200, 0.2";
+            for (let i = 0; i < trace.length - 1; i++) {
+                const [currentState, currentTime] = trace[i];
+                const [nextState, nextTime] = trace[i + 1];
+
+                // Only shade if the state stays the same
+                if (currentState === nextState && nextTime - currentTime > 1) {
+                    const xStart = currentTime * scaleX;
+                    const width = (nextTime - currentTime) * scaleX;
+                    ctx.fillRect(xStart, 0, width, canvas.height);
+                }
+            }
+
+            // Draw waveform as step diagram
+            ctx.beginPath();
+            let [firstState, firstTime] = trace[0];
+            ctx.moveTo(firstTime * scaleX, stateMap[firstState]);
+
+            for (let i = 0; i < trace.length; i++) {
+                const [state, time] = trace[i];
+                const x = time * scaleX;
+                const y = stateMap[state];
+
+                // Horizontal line to current point
+                ctx.lineTo(x, y);
+
+                // Vertical step to next state if exists
+                if (i + 1 < trace.length) {
+                    const nextX = trace[i + 1][1] * scaleX;
+                    const nextY = stateMap[trace[i + 1][0]];
+                    ctx.lineTo(nextX, y);     // horizontal
+                    ctx.lineTo(nextX, nextY); // vertical
+                }
+            }
+
+            // Stroke waveform
+            ctx.strokeStyle = "#007bff";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw transition dots at each timestamp
+            const dots = [];
+            ctx.fillStyle = "#007bff";
+            trace.forEach(([state, time]) => {
+                const x = time * scaleX;
+                const y = stateMap[state];
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                dots.push({ x, y, state, time });
+            });
+
+            // Draw horizontal state lines and labels
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            ctx.fillStyle = "#000";
+            ctx.font = "13px Arial";
+            for (let state in stateMap) {
+                const y = stateMap[state];
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(currentVirtualWidth, y);
+                ctx.stroke();
+                ctx.fillText(state, 2, y - 5);
+            }
+
+            // Tooltip hover logic
+            canvas.addEventListener("mousemove", (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                let found = false;
+
+                for (let dot of dots) {
+                    const dx = dot.x - mouseX + offsetX;
+                    const dy = dot.y - mouseY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 10) { // hover radius
+                        tooltip.style.left = `${e.pageX + 10}px`;
+                        tooltip.style.top = `${e.pageY + 10}px`;
+                        tooltip.innerHTML = `State: ${dot.state}<br>Time: ${dot.time}`;
+                        tooltip.style.display = "block";
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) tooltip.style.display = "none";
+
+                showScrollbarsNow();
+            });
+
+            canvas.addEventListener("mouseleave", () => {
+                tooltip.style.display = "none";
+                scheduleScrollbarFade();
+            });
+
+            if (showScrollbars) drawScrollbars();
+
+            ctx.restore();
+
+        }
+
+        function drawScrollbars() {
+            const scrollbarThickness = 6;
+            const scrollbarMargin = 4;
+            const cornerRadius = 3;
+
+            ctx.globalAlpha = 0.5;
+
+            // Horizontal scrollbar
+            const horizontalLength = Math.min(
+                (canvas.width / currentVirtualWidth) * canvas.width,
+                canvas.width
+            );
+
+            const horizontalPosition =
+                -offsetX +
+                (-offsetX / (currentVirtualWidth - canvas.width)) *
+                (canvas.width - horizontalLength);
+
+            drawRoundedRect(
+                horizontalPosition + scrollbarMargin,
+                canvas.height - scrollbarThickness - scrollbarMargin,
+                horizontalLength - scrollbarMargin * 2,
+                scrollbarThickness,
+                cornerRadius,
+                "#00000066"
+            );
+
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawRoundedRect(x, y, w, h, r, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.fill();
+        }
+
+        function showScrollbarsNow() {
+            if (!showScrollbars) {
+                showScrollbars = true;
+                drawWaveform();
+            }
+            if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+        }
+
+        function scheduleScrollbarFade() {
+            if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+            scrollbarTimeout = setTimeout(() => {
+                showScrollbars = false;
+                drawWaveform();
+            }, 500);
+        }
+
+    </script>
+
+
     <script>
         const runButton = document.getElementById('runBtn');
         const zipInput = document.getElementById('zipInput');
@@ -256,7 +699,27 @@
                 const jsURL = URL.createObjectURL(jsBlob);
 
                 // Dynamically import and initialize
-                const module = await import(jsURL);
+                const module = await import(jsURL).then(mod => {
+                    outputEl.textContent += 'Wasm module loaded successfully.\n';
+                    // module is ready here
+
+                    function waitForMonitor() {
+                        if (typeof myMonitor !== "undefined") {
+                            document.querySelectorAll(".container.hidden")
+                                .forEach(el => el.classList.remove("hidden"));
+                            window.dispatchEvent(new Event('resize')); // trigger recalculation
+
+                        } else {
+                            setTimeout(waitForMonitor, 1);
+                        }
+                    }
+
+                    waitForMonitor();
+
+                    return mod;
+                });
+
+
 
                 if (module.default) {
                     wasmExports = await module.default();
@@ -264,12 +727,12 @@
                     wasmExports = module;
                 }
 
-                if (wasmExports.main) {
-                    wasmExports.main();
-                    outputEl.textContent += 'Wasm module executed successfully.\n';
-                } else {
-                    outputEl.textContent += 'No exported main() found.\n';
-                }
+                // if (wasmExports.main) {
+                //     wasmExports.main();
+                //     outputEl.textContent += 'Wasm module executed successfully.\n';
+                // } else {
+                //     outputEl.textContent += 'No exported main() found.\n';
+                // }
 
                 // Cleanup
                 URL.revokeObjectURL(jsURL);
@@ -290,11 +753,225 @@
                 outputEl.textContent += 'Wasm module not loaded or no status() export.\n';
                 return;
             }
-            console.log(myMathLib.main(''));
-            console.log(myMathLib.add(3, 4));
+
+            // check if myMathLib is defined
+
+            if (!((typeof myMathLib !== "undefined") || (typeof myMonitor !== "undefined"))) {
+                outputEl.textContent += 'Required exports (myMathLib or myMonitor) not found.\n';
+                return;
+            }
+
+            if (((typeof myMathLib !== "undefined"))) {
+                outputEl.textContent += 'myMathLib found!\n';
+                outputEl.textContent += myMathLib.main('') + '\n';
+                outputEl.textContent += 'myMathLib main() executed.\n';
+                outputEl.textContent += 'myMathLib add(11, 22): ' + myMathLib.add(11, 22) + '\n';
+            }
+
+            if (((typeof myMonitor !== "undefined"))) {
+                outputEl.textContent += 'myMonitor found!\n';
+                outputEl.textContent += myMonitor.setdefault('') + '\n';
+                myMonitor.set([
+                    ["a", 0.], ["g", 1.], ["p", 2.], ["p", 3.], ["p", 4.], ["q", 5.], ["p", 6.], ["p", 7.],
+                    ["p", 8.], ["p", 14.]
+                ]);
+                outputEl.textContent += myMonitor.run('') + '\n';
+            }
         }
 
         statusButton.addEventListener('click', runStatus);
+    </script>
+
+
+    <script>
+        const canvas2 = document.getElementById("waveform2");
+        const ctx2 = canvas2.getContext("2d");
+        const tooltip2 = document.getElementById("tooltip2");
+
+        function resizeCanvas2() {
+            // Adjust canvas width based on parent width minus 64px
+            canvas2.width = canvas2.clientWidth;   // set internal resolution
+            console.log("Resized canvas2 to width:", canvas2.width);
+
+            // Set the CSS size to match (so it fills the space)
+            //canvas2.style.width = canvas2.width + 'px';
+
+            draw();
+        }
+        // Update canvas size whenever the window is resized
+        window.addEventListener('resize', resizeCanvas2);
+
+        // ----------------------------------------------------
+        // A) MONITORS DATA
+        // ----------------------------------------------------
+        const monitors = [
+            {
+                name: "A",
+                verdicts: ["true", "true", "false", "false", "unknown", "true"],
+                expanded: true
+            },
+            {
+                name: "B",
+                verdicts: ["false", "false", "false", "true", "unknown", "unknown"],
+                expanded: true
+            },
+            {
+                name: "C",
+                verdicts: ["unknown", "unknown", "true", "true", "false", "false", "unknown", "true", "true", "false", "false", "unknown", "true", "true", "false", "false"],
+                expanded: true
+            },
+            {
+                name: "D",
+                verdicts: ["true", "unknown", "true", "false", "false", "unknown"],
+                expanded: true
+            }
+        ];
+
+        // ----------------------------------------------------
+        const COLORS = {
+            true: "#36d96f",
+            false: "#ff4c4c",
+            unknown: "#f5d742"
+        };
+
+        const LABEL_W = 50;
+        const COLLAPSED_HEIGHT = 40;
+        const EXPANDED_HEIGHT = 120;
+
+        let monitorRects = [];
+        let segmentRects = [];
+
+        // ----------------------------------------------------
+        function draw() {
+            let totalHeight = monitors.reduce((sum, m) =>
+                sum + (m.expanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT), 0);
+
+            canvas2.height = totalHeight;
+
+            ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+            ctx2.lineWidth = 3;
+
+            monitorRects = [];
+            segmentRects = [];
+
+            let yOffset = 0;
+
+            monitors.forEach((monitor, index) => {
+                const h = monitor.expanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
+
+                drawMonitorRow(monitor, yOffset, h);
+                monitorRects.push({ name: monitor.name, y: yOffset, height: h, index });
+
+                yOffset += h;
+            });
+        }
+
+        function drawMonitorRow(monitor, top, height) {
+            const center = top + height / 2;
+
+            ctx2.fillStyle = "#000";
+            ctx2.font = "18px monospace";
+            ctx2.fillText((monitor.expanded ? "▼ " : "► ") + monitor.name, 10, center + 6);
+
+            if (!monitor.expanded) return;
+
+            const trueY = top + height * 0.25;
+            const falseY = top + height * 0.75;
+            const unknownY = center;
+
+            const segW = (canvas2.width - LABEL_W - 20) / monitor.verdicts.length;
+
+            for (let i = 0; i < monitor.verdicts.length; i++) {
+                const v = monitor.verdicts[i];
+                const x = LABEL_W + i * segW;
+                let y = (v === "true" ? trueY : v === "false" ? falseY : unknownY);
+
+                segmentRects.push({
+                    monitor: monitor.name,
+                    state: v,
+                    x, y: top,
+                    width: segW,
+                    height,
+                    index: i
+                });
+
+                if (v === "unknown") {
+                    ctx2.strokeStyle = COLORS.unknown;
+                    ctx2.setLineDash([8, 6]);
+                    ctx2.beginPath();
+                    ctx2.moveTo(x, unknownY);
+                    ctx2.lineTo(x + segW, unknownY);
+                    ctx2.stroke();
+                    ctx2.setLineDash([]);
+                } else {
+                    ctx2.strokeStyle = COLORS[v];
+                    ctx2.beginPath();
+                    ctx2.moveTo(x, y);
+                    ctx2.lineTo(x + segW, y);
+                    ctx2.stroke();
+                }
+
+                if (i < monitor.verdicts.length - 1) {
+                    const next = monitor.verdicts[i + 1];
+                    const nextY =
+                        next === "true" ? trueY :
+                            next === "false" ? falseY :
+                                unknownY;
+
+                    if (nextY !== y) {
+                        ctx2.beginPath();
+                        ctx2.moveTo(x + segW, y);
+                        ctx2.lineTo(x + segW, nextY);
+                        ctx2.stroke();
+                    }
+                }
+            }
+        }
+
+        canvas2.addEventListener("click", e => {
+            const y = e.offsetY;
+
+            for (const rect of monitorRects) {
+                if (y >= rect.y && y <= rect.y + rect.height) {
+                    monitors[rect.index].expanded = !monitors[rect.index].expanded;
+                    draw();
+                    return;
+                }
+            }
+        });
+
+        canvas2.addEventListener("mousemove", e => {
+            const x = e.offsetX;
+            const y = e.offsetY;
+
+            for (const seg of segmentRects) {
+                if (x >= seg.x && x <= seg.x + seg.width &&
+                    y >= seg.y && y <= seg.y + seg.height) {
+
+                    tooltip2.style.display = "block";
+                    tooltip2.style.left = (x + 10) + "px";
+                    tooltip2.style.top = (y + 10) + "px";
+
+                    const stateText =
+                        seg.state === "true" ? "TRUE" :
+                            seg.state === "false" ? "FALSE" :
+                                "UNKNOWN";
+
+                    tooltip2.textContent =
+                        `Monitor: ${seg.monitor}\n` +
+                        `State: ${stateText}\n` +
+                        `Index: ${seg.index}\n` +
+                        `Time: ${seg.index} → ${seg.index + 1}`;
+
+                    return;
+                }
+            }
+
+            tooltip2.style.display = "none";
+        });
+
+        // Start drawing
+        draw();
     </script>
 </body>
 

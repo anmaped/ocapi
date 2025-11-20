@@ -4,24 +4,31 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OCaml → Wasm Compiler</title>
+    <title>OCAPI Compile · OCaml → WebAssembly Compiler API</title>
+    <link rel="stylesheet" href="ocapi.css">
     <style>
-        body {
-            font-family: "Segoe UI", sans-serif;
-            background: #f4f4f8;
-            margin: 0;
-            padding: 2em;
+        /* Make the parent container a flex container */
+        .flex-container {
             display: flex;
-            justify-content: center;
+            gap: 1rem;
+            /* space between the two containers */
+            align-items: flex-start;
+            /* align the tops */
+            flex-wrap: wrap;
+            /* wrap on smaller screens */
+            padding: 1em;
+
         }
 
         .container {
             background: white;
-            padding: 2em;
+            padding: 0em 2em 2em 2em;
             border-radius: 10px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
             max-width: 700px;
             width: 100%;
+            margin: 0 auto;
+            /* center on the page */
         }
 
         h1 {
@@ -154,46 +161,63 @@
 </head>
 
 <body>
-    <div class="container">
-        <h1>OCaml → WebAssembly Compiler</h1>
-        <h3>Compile OCaml programs to WASM online (see examples below).</h3>
+    <header role="banner">
+        <strong>🦒 OCAPI</strong>
+        <nav aria-label="Primary">
+            <a href="/" aria-current="page">Compile</a>
+            <a href="/run">Run</a>
+            <a href="/doc">Docs</a>
+            <a href="https://github.com/anmaped/ocapi" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
+    </header>
+    <div class="flex-container">
 
-        <form id="codeForm">
-            <label>OCaml Code Block</label>
-            <textarea id="code" name="code_block" placeholder="Enter your code here..."></textarea>
+        <div class="container">
+            <h2>Compile OCaml Programs to WebAssembly</h2>
 
-            <label for="exampleSelect">Or choose an example:</label>
-            <select id="exampleSelect">
-                <option value="">-- Select an example --</option>
-                <option value="print_endline &quot;Hello, WebAssembly!&quot;;">Hello World</option>
-                <option value="let rec fact n = if n <= 1 then 1 else n * fact (n - 1);; print_int (fact 5);;">Factorial
-                </option>
-                <option value="let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2);; print_int (fib 10);;">
-                    Fibonacci</option>
-                <option value="let add a b = a + b;; print_int (add 3 7);;">Simple Function</option>
-                <option value="js_example">Js_of_ocaml Export Example</option>
-            </select>
+            <form id="codeForm">
+                <label>OCaml Code Block</label>
+                <textarea id="code" name="code_block" placeholder="Enter your code here..."></textarea>
 
-            <button type="submit">Compile Code</button>
-        </form>
+                <label for="exampleSelect">Or choose an example:</label>
+                <select id="exampleSelect">
+                    <option value="">-- Select an example --</option>
+                    <option value="print_endline &quot;Hello, WebAssembly!&quot;;">Hello World</option>
+                    <option value="let add a b = a + b;; print_int (add 3 7);;">Simple Function</option>
+                    <option value="let rec fact n = if n <= 1 then 1 else n * fact (n - 1);; print_int (fact 5);;">
+                        Factorial
+                    </option>
+                    <option
+                        value="let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2);; print_int (fib 10);;">
+                        Fibonacci</option>
+                    <option value="js_example">Js_of_ocaml myMathLib Export Example</option>
+                    <option value="rmtld3synth_example">rmtld3synth Simple Monitor Example</option>
+                </select>
 
-        <div id="spinner" class="spinner"></div>
+                <button type="submit">Compile Code</button>
+            </form>
 
-        <div>
-            <h2>Example using REST API /compile</h2>
-            <pre>
+            <div id="spinner" class="spinner"></div>
+
+            <div>
+                <h2>Example using REST API /compile</h2>
+                <pre>
 curl -X POST http://localhost:8080/compile \
     -H "Content-Type: application/json"    \
     -d '{"code": "print_endline \"Hello WebAssembly!\""}' \
     --output output.wasm.js.zip
             </pre>
-        </div>
+            </div>
 
-        <footer style="text-align: center; margin-top: 2em; color: #666;">
-            &copy; 2025 The<a href="https://github.com/anmaped/rmtld3synth" target="_blank" rel="noopener noreferrer"
-                style="margin-left:0.5em;color:#0078d7;text-decoration:none;">rmtld3synth</a> Team. All rights reserved.
-        </footer>
+        </div>
     </div>
+
+    <footer role="contentinfo">© <span id="year"></span> The <a href="https://github.com/anmaped/rmtld3synth"
+            target="_blank" rel="noopener noreferrer">rmtld3synth</a> Team · All rights
+        reserved.</footer>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
 
     <script>
         const form = document.getElementById('codeForm');
@@ -217,7 +241,25 @@ let _ =
       val zero = 0.
     end)
 `;
-            } else if (value) {
+            }
+            else if (value === "rmtld3synth_example") {
+                fetch('examples/rmtld3synth_simple_monitor.ml')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.text(); // use .json() if it's a JSON file
+                    })
+                    .then(data => {
+                        console.log('File contents:', data);
+                        codeTextarea.value = data;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching file:', error);
+                    });
+
+            }
+            else if (value) {
                 // For single-line examples
                 codeTextarea.value = value.replace(/&quot;/g, '"');
             }
