@@ -5,20 +5,11 @@
     <meta charset="UTF-8">
     <title>OCAPI Run · OCaml → WebAssembly Compiler API</title>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico"/>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
     <link rel="stylesheet" href="ocapi.css">
     <style>
-        /* Make the parent container a flex container */
-        .flex-container {
-            display: flex;
-            gap: 1rem;
-            /* space between the two containers */
-            align-items: flex-start;
-            /* align the tops */
-            flex-wrap: wrap;
-            /* wrap on smaller screens */
-            padding: 1em;
-
+        .layout {
+            grid-template-columns: 300px 1fr;
         }
 
         .container {
@@ -37,13 +28,9 @@
         .stack.right {
             flex: 3;
             display: flex;
-            gap: 1rem;
+            gap: 2rem;
             flex-direction: column;
             min-width: 250px;
-        }
-
-        form {
-            margin-bottom: 2em;
         }
 
         /* Spinner styles */
@@ -67,14 +54,6 @@
             100% {
                 transform: rotate(360deg);
             }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .visible {
-            display: block;
         }
 
         label {
@@ -185,11 +164,6 @@
             background: rgba(0, 0, 0, 0.85);
         }
 
-        .hidden {
-            display: none;
-        }
-
-
         #waveform2 {
             border: 1px solid #ccc;
             width: 100%;
@@ -209,10 +183,10 @@
             <a href="https://github.com/anmaped/ocapi" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
         </nav>
     </header>
+    <div class="layout">
+        <aside>
 
-    <div class="flex-container">
 
-        <div class="container main">
             <h2>Run OCaml Programs in WebAssembly</h2>
             <a href="https://ocaml.org/" target="_blank">
                 <img src="https://img.shields.io/badge/OCaml-3C873A?logo=ocaml&logoColor=white" alt="OCaml Badge" />
@@ -230,8 +204,7 @@
 
             <p>Need help compiling? See the <a href="doc" target="_blank">Ocapi documentation</a>.</p>
 
-        </div>
-
+        </aside>
         <div class="stack right">
             <div class="container hidden">
                 <h2>Waveform Visualization - Input Trace</h2>

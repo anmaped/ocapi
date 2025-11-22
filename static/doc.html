@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+        content="OCAPI documentation: OCaml to WebAssembly compiler API, usage, endpoints, examples, and security model." />
+    <title>OCAPI Documentation · OCaml → WebAssembly Compiler API</title>
+    <link rel="stylesheet" href="ocapi.css">
+    <style>
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+            margin: .75rem 0 1.25rem;
+        }
+
+        .badge {
+            background: #eef1f5;
+            padding: .35rem .55rem;
+            border-radius: 6px;
+            font-size: .7rem;
+            font-weight: 600;
+            letter-spacing: .03em;
+        }
+
+        .http-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: .75rem;
+        }
+
+        .http-table th,
+        .http-table td {
+            border: 1px solid var(--border);
+            padding: .5rem .6rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .http-table th {
+            background: #fafbfc;
+        }
+
+        .callout {
+            border-left: 4px solid var(--accent);
+            background: #eef1ff;
+            padding: .75rem 1rem;
+            margin: 1.25rem 0;
+            border-radius: 4px;
+        }
+
+        .danger {
+            border-left-color: var(--danger);
+            background: #ffeceb;
+        }
+
+        .small {
+            font-size: .85rem;
+            color: #5c6575;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -1000px;
+            top: -1000px;
+            background: #000;
+            color: #fff;
+            padding: .6rem .9rem;
+            border-radius: 6px;
+        }
+
+        .skip-link:focus {
+            left: 1rem;
+            top: 1rem;
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            aside {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <header role="banner">
+        <strong>OCAPI</strong>
+        <nav aria-label="Primary">
+            <a href="/">Compile</a>
+            <a href="/run">Run</a>
+            <a href="/doc" aria-current="page">Docs</a>
+            <a href="https://github.com/anmaped/ocapi" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
+    </header>
+    <div class="layout">
+        <aside aria-label="Control">
+            <p>Need help compiling? See the Ocapi documentation.</p>
+
+            <a href="https://ocaml.org/" target="_blank">
+                <img src="https://img.shields.io/badge/OCaml-3C873A?logo=ocaml&logoColor=white" alt="OCaml Badge" />
+            </a><a href="https://webassembly.org/" target="_blank">
+                <img src="https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=white"
+                    alt="WebAssembly Badge" />
+            </a>
+            <div class="badge-row" aria-label="Technology stack">
+                <span class="badge">Dream</span>
+                <span class="badge">Podman</span>
+                <span class="badge">Docker</span>
+            </div>
+
+        </aside>
+        <main id="main" tabindex="-1">
+            <h1>Documentation</h1>
+
+
+            <h2 id="overview">Overview</h2>
+            <p>OCAPI is a minimal HTTP service and web UI that compiles <strong>OCaml</strong> source snippets to
+                <strong>WebAssembly</strong> modules. Each compilation runs inside an ephemeral, isolated container to
+                reduce risk and to keep dependencies out of the host environment.
+            </p>
+            <div class="callout">
+                <strong>Goal:</strong> Provide a clean, scriptable API and lightweight UI for experimenting with OCaml →
+                Wasm workflows without requiring local toolchain installation.
+            </div>
+
+            <h2 id="features">Features</h2>
+            <ul>
+                <li><strong>RESTful API:</strong> Single endpoint (<code class="inline">POST /compile</code>) accepts
+                    OCaml code and returns WebAssembly binaries.</li>
+                <li><strong>Interactive Web UI:</strong> Browser-based editor for live coding (<code
+                        class="inline">/</code>) and runtime testing (<code class="inline">/run</code>).</li>
+                <li><strong>Stateless Architecture:</strong> Each compilation request spawns an ephemeral, isolated
+                    container—no shared state between requests.</li>
+                <li><strong>Automatic Cleanup:</strong> Containers are removed immediately after compilation, ensuring
+                    minimal resource footprint.</li>
+                <li><strong>Zero-Install Client:</strong> No local OCaml toolchain required; access via any modern
+                    browser or HTTP client.</li>
+            </ul>
+
+            <h2 id="quick-start">Quick Start</h2>
+            <ol>
+                <li><strong>Build sandbox image:</strong><br>
+                    <code class="inline">docker build -t ocapi-sandbox -f Containerfile.sandbox .</code>
+                </li>
+                <li><strong>Build server image:</strong><br>
+                    <code class="inline">docker build -t ocapi -f Containerfile .</code>
+                </li>
+                <li><strong>Run the service:</strong><br>
+                    <code
+                        class="inline">docker run -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock ocapi</code>
+                </li>
+                <li><strong>Open in browser:</strong> Navigate to <code class="inline">http://localhost:8080</code></li>
+                <li><strong>Or compile via API:</strong> See <a href="#examples">usage examples</a> below.</li>
+            </ol>
+            <p class="small">Podman is supported; see <a href="https://github.com/anmaped/ocapi/blob/main/readme.md"
+                    target="_blank" rel="noopener noreferrer">project README</a> for socket mounting instructions.</p>
+
+            <h2 id="api">HTTP API</h2>
+            <table class="http-table" aria-describedby="api">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Description</th>
+                        <th>Request</th>
+                        <th>Response</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>GET</td>
+                        <td><code class="inline">/</code></td>
+                        <td>Interactive code editor; compile OCaml → Wasm in-browser.</td>
+                        <td>—</td>
+                        <td>HTML</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code class="inline">/run</code></td>
+                        <td>Interactive runtime environment; load and execute compiled Wasm modules with configurable
+                            imports.</td>
+                        <td>—</td>
+                        <td>HTML</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code class="inline">/doc</code></td>
+                        <td>Documentation (this page).</td>
+                        <td>—</td>
+                        <td>HTML</td>
+                    </tr>
+                    <tr>
+                        <td>POST</td>
+                        <td><code class="inline">/compile</code></td>
+                        <td>Compile OCaml snippet to Wasm.</td>
+                        <td style="white-space:nowrap">JSON: <code class="inline">{"code": 
+                                "print_endline \"Hi\""}</code></td>
+                        <td>Success: <code class="inline">application/zip</code> binary<br />Error: <code
+                                class="inline">application/json</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2 id="examples">Usage Examples</h2>
+            <h3>cURL</h3>
+            <pre><code>curl -X POST http://localhost:8080/compile \
+  -H "Content-Type: application/json" \
+  -d '{"code": "print_endline \"Hello WebAssembly!\""}' \
+  --output output.wasm.js.zip
+</code></pre>
+            <pre><code>file output.wasm.js.zip  # should report a Zip binary</code></pre>
+            <h3>JavaScript Fetch</h3>
+            <pre><code>const src = 'print_endline "Hello from OCAPI"';
+const resp = await fetch('/compile', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code: src })
+});
+if (!resp.ok) {
+  console.error(await resp.json());
+} else {
+  const zipBytes = await resp.arrayBuffer();
+  // Process zipBytes (e.g., save or extract)
+}
+</code></pre>
+
+            <h2 id="errors">Error Handling</h2>
+            <p>Errors are returned with HTTP <code class="inline">400 Bad Request</code> and a JSON body:</p>
+            <pre><code>{"error": "Missing 'code' field in JSON"}</code></pre>
+            <p>Compilation failures (syntax errors, etc.) surface as <code
+                    class="inline">{"error": "...compiler output..."}</code>.</p>
+
+            <h2 id="implementation">Implementation Notes</h2>
+            <p>Internal build orchestration &amp; compiler specifics are documented in the <a
+                    href="https://github.com/anmaped/ocapi/blob/main/readme.md" target="_blank"
+                    rel="noopener noreferrer">project README</a>.</p>
+
+            <h2 id="limitations">Current Limitations</h2>
+            <ul>
+                <li>Single-source snippet model (no multi-file project graph yet).</li>
+                <li>No persistent caching across requests.</li>
+                <li>Exports / runtime glue may require manual adaptation depending on compiler flags.</li>
+                <li>No authentication: intended for local / controlled environments.</li>
+            </ul>
+
+            <h2 id="license">License</h2>
+            <p>Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT
+                    License</a>. See repository for full text.</p>
+
+        </main>
+    </div>
+    <footer role="contentinfo">© <span id="year"></span> OCAPI · OCaml → WebAssembly Compiler API</footer>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+</body>
+
+</html>
