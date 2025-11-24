@@ -695,7 +695,10 @@
                             window.dispatchEvent(new Event('resize')); // trigger recalculation
 
                         } else {
-                            setTimeout(waitForMonitor, 1);
+                            if (typeof myLib !== "undefined") { return; }
+
+                            setTimeout(waitForMonitor, 1000);
+                            console.log("Waiting for myMonitor or myLib export...");
                         }
                     }
 
@@ -739,28 +742,34 @@
                 return;
             }
 
-            // check if myMathLib is defined
+            // check if myLib or myMonitor are defined
 
-            if (!((typeof myMathLib !== "undefined") || (typeof myMonitor !== "undefined"))) {
-                outputEl.textContent += 'Required exports (myMathLib or myMonitor) not found.\n';
+            if (!((typeof myLib !== "undefined") || (typeof myMonitor !== "undefined"))) {
+                outputEl.textContent += 'Required exports (myLib or myMonitor) not found.\n';
                 return;
             }
 
-            if (((typeof myMathLib !== "undefined"))) {
-                outputEl.textContent += 'myMathLib found!\n';
-                outputEl.textContent += myMathLib.main('') + '\n';
-                outputEl.textContent += 'myMathLib main() executed.\n';
-                outputEl.textContent += 'myMathLib add(11, 22): ' + myMathLib.add(11, 22) + '\n';
+            if (((typeof myLib !== "undefined"))) {
+                outputEl.textContent += 'myLib found!\n';
+                outputEl.textContent += myLib.main('') + '\n';
+                outputEl.textContent += 'myLib main() executed.\n';
+                outputEl.textContent += 'myLib add(11, 22): ' + myLib.add(11, 22) + '\n';
             }
 
             if (((typeof myMonitor !== "undefined"))) {
                 outputEl.textContent += 'myMonitor found!\n';
-                outputEl.textContent += myMonitor.setdefault('') + '\n';
-                myMonitor.set([
-                    ["a", 0.], ["g", 1.], ["p", 2.], ["p", 3.], ["p", 4.], ["q", 5.], ["p", 6.], ["p", 7.],
-                    ["p", 8.], ["p", 14.]
-                ]);
-                outputEl.textContent += myMonitor.run('') + '\n';
+                //outputEl.textContent += myMonitor.setdefault('') + '\n';
+                outputEl.textContent += 'available monitors: ' + myMonitor.list('') + '\n';
+                //myMonitor.set('decd_0', JSON.parse(document.getElementById("traceInput").value));
+                //outputEl.textContent += myMonitor.run('decd_0') + '\n';
+
+                // Execute all available monitors from the list and display their verdicts
+                const monitors = myMonitor.list('').split(',').map(s => s.trim());
+                console.log("Monitors available:", monitors);
+                monitors.forEach(monitor => {
+                    myMonitor.set(monitor, JSON.parse(document.getElementById("traceInput").value));
+                    outputEl.textContent += `Monitor ${monitor} verdict: ` + myMonitor.run(monitor) + '\n';
+                });
             }
         }
 
@@ -789,7 +798,68 @@
         // ----------------------------------------------------
         // A) MONITORS DATA
         // ----------------------------------------------------
-        const monitors = [
+        monitors = [];
+
+        // add button to add monitor below waveform
+        (function addMonitorButton() {
+            // Avoid duplicate button if script runs twice
+            if (document.getElementById('addMonitorBtn')) return;
+
+            const btn = document.createElement('button');
+            btn.id = 'addMonitorBtn';
+            btn.className = 'add-btn';
+            btn.textContent = 'Generate Monitor Waveform';
+
+            // Place the button right below the waveform (after the canvas wrapper)
+            if (canvas2 && canvas2.parentNode) {
+                canvas2.parentNode.insertAdjacentElement('afterend', btn);
+            } else {
+                // Fallback: append to the container
+                const container = canvas2?.closest('.container') || document.body;
+                container.appendChild(btn);
+            }
+
+            btn.addEventListener('click', () => {
+                monitors = []; // reset monitors
+
+                const trace = JSON.parse(document.getElementById('traceInput').value);
+                // Use number of transitions as steps
+                steps = Math.max(1, (Array.isArray(trace) ? trace.length - 1 : 8));
+
+                const monitor_list = myMonitor.list('').split(',').map(s => s.trim());
+                monitor_list.forEach(monitor => {
+                    // Run monitor for each step to get verdicts
+                    const verdicts = [];
+                    for (let i = 0; i < steps; i++) {
+                        const prefix = Array.isArray(trace) ? trace.slice(0, Math.min(trace.length, i + 2)) : [];
+                        try {
+                            myMonitor.set(monitor, prefix);
+                            let v = myMonitor.run(monitor);
+                            verdicts.push(v == 0 ? 'true' : v == 1 ? 'false' : 'unknown');
+                        } catch (err) {
+                            console.error(`Monitor ${monitor} step ${i} failed:`, err);
+                            verdicts.push('unknown');
+                        }
+                    }
+
+                    console.log(`Monitor ${monitor} verdicts:`, verdicts);
+
+
+                    monitors.push({
+                        name: monitor,
+                        verdicts: verdicts,
+                        expanded: true
+                    });
+                });
+
+
+                draw();
+            });
+        })();
+
+
+
+        /*const monitors = [
             {
                 name: "A",
                 verdicts: ["true", "true", "false", "false", "unknown", "true"],
@@ -810,7 +880,7 @@
                 verdicts: ["true", "unknown", "true", "false", "false", "unknown"],
                 expanded: true
             }
-        ];
+        ];*/
 
         // ----------------------------------------------------
         const COLORS = {
@@ -819,7 +889,7 @@
             unknown: "#f5d742"
         };
 
-        const LABEL_W = 50;
+        const LABEL_W = 200;
         const COLLAPSED_HEIGHT = 40;
         const EXPANDED_HEIGHT = 120;
 

@@ -15,12 +15,12 @@ let compile_handler request =
     Compile.compile_in_docker code
     >>= function
     | Ok wasm ->
-        Dream.respond ~headers:[("Content-Type", "application/wasm")] wasm
+        Dream.respond ~headers:[("Content-Type", "application/zip")] wasm
     | Error err ->
         Dream.json ~status:`Bad_Request
           (Printf.sprintf {|{"error": "%s"}|} err)
 
-let serve_favicon _req =
+let favicon_handler _ =
   Lwt_io.(with_file ~mode:Input "favicon.ico" read)
   >>= fun data ->
   Dream.respond ~headers:[("Content-Type", "image/x-icon")] data
@@ -28,15 +28,15 @@ let serve_favicon _req =
 let () =
   let app =
     Dream.router
-      [ Dream.get "/favicon.ico" serve_favicon
+      [ Dream.get "/favicon.ico" favicon_handler
       ; Dream.get "/" (Dream.from_filesystem "static" "index.html")
       ; Dream.post "/compile" compile_handler
       ; Dream.get "/run" (Dream.from_filesystem "static" "run.html")
       ; Dream.get "/doc" (Dream.from_filesystem "static" "doc.html")
       ; Dream.get "/ocapi.css" (Dream.from_filesystem "static" "ocapi.css")
-      ; Dream.get "/examples/rmtld3synth_simple_monitor.ml"
-          (Dream.from_filesystem "unittest" "rmtld3synth_simple_monitor.ml")
-      ]
+      ; Dream.get "/examples/:file" (fun request ->
+            let path = Dream.param request "file" in
+            Dream.from_filesystem "unittest" path request ) ]
     |> Dream.logger
   in
   Dream.run ~interface:"0.0.0.0" app

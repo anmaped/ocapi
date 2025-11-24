@@ -19,6 +19,29 @@
             /* center on the page */
         }
 
+        #spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            /* shadow */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-size: 18px;
+            display: none;
+            /* hide by default */
+        }
+
+        .spinner-message {
+            text-align: center;
+        }
+
         /* Spinner styles */
         .spinner {
             border: 4px solid #f3f3f3;
@@ -28,7 +51,7 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
-            display: none;
+            /* display: none; */
             /* hidden by default */
         }
 
@@ -159,21 +182,22 @@
                 <label for="exampleSelect">Or choose an example:</label>
                 <select id="exampleSelect">
                     <option value="">-- Select an example --</option>
-                    <option value="print_endline &quot;Hello, WebAssembly!&quot;;">Hello World</option>
-                    <option value="let add a b = a + b;; print_int (add 3 7);;">Simple Function</option>
-                    <option value="let rec fact n = if n <= 1 then 1 else n * fact (n - 1);; print_int (fact 5);;">
-                        Factorial
-                    </option>
-                    <option
-                        value="let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2);; print_int (fib 10);;">
-                        Fibonacci</option>
-                    <option value="js_example">Js_of_ocaml myMathLib Export Example</option>
-                    <option value="rmtld3synth_example">rmtld3synth Simple Monitor Example</option>
+                    <option value="hello">Hello World</option>
+                    <option value="f">Simple Function</option>
+                    <option value="factorial">Factorial</option>
+                    <option value="fib">Fibonacci</option>
+                    <option value="js_of_ocaml_myLib">Js_of_ocaml myLib Export Example</option>
+                    <option value="rmtld3synth_simple_monitor">rmtld3synth Simple Monitor Example</option>
+                    <option value="rmtld3synth_several_monitors">rmtld3synth Several Monitors Example</option>
                 </select>
 
             </form>
 
-            <div id="spinner" class="spinner"></div>
+            <div id="spinner-overlay">
+                <div class="spinner"></div>
+                <div class="spinner-message" id="spinner-message"></div>
+
+            </div>
         </main>
     </div>
     <footer role="contentinfo">© <span id="year"></span> The <a href="https://github.com/anmaped/rmtld3synth"
@@ -181,59 +205,70 @@
         reserved.</footer>
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
+
+        let messageTimer = null;
+
+        function showSpinner(messageList, interval = 2000) {
+            const overlay = document.getElementById("spinner-overlay");
+            const messageElem = document.getElementById("spinner-message");
+
+            overlay.style.display = "flex";
+
+            let index = 0;
+            messageElem.textContent = messageList[index];
+
+            messageTimer = setInterval(() => {
+                index = (index + 1);
+
+                if (index >= messageList.length) {
+                    clearInterval(messageTimer);
+                    return;
+                }
+                messageElem.textContent = messageList[index];
+            }, interval);
+        }
+
+        function hideSpinner() {
+            document.getElementById("spinner-overlay").style.display = "none";
+
+            if (messageTimer) {
+                clearInterval(messageTimer);
+                messageTimer = null;
+            }
+        }
     </script>
 
     <script>
         const form = document.getElementById('codeForm');
-        const spinner = document.getElementById('spinner');
         const exampleSelect = document.getElementById('exampleSelect');
         const codeTextarea = document.getElementById('code');
 
         exampleSelect.addEventListener('change', () => {
             const value = exampleSelect.value;
 
-            if (value === "js_example") {
-                codeTextarea.value = `open Js_of_ocaml
+            fetch('examples/' + value + '.ml')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.text(); // use .json() if it's a JSON file
+                })
+                .then(data => {
+                    console.log('File contents:', data);
+                    codeTextarea.value = data;
+                })
+                .catch(error => {
+                    console.error('Error fetching file:', error);
+                });
 
-let _ =
-  print_endline "Hello world!";
-  Js.export "myMathLib"
-    (object%js
-      method main () = print_endline "main"
-      method add x y = x + y
-      method abs x = abs_float x
-      val zero = 0.
-    end)
-`;
-            }
-            else if (value === "rmtld3synth_example") {
-                fetch('examples/rmtld3synth_simple_monitor.ml')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok ' + response.statusText);
-                        }
-                        return response.text(); // use .json() if it's a JSON file
-                    })
-                    .then(data => {
-                        console.log('File contents:', data);
-                        codeTextarea.value = data;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching file:', error);
-                    });
 
-            }
-            else if (value) {
-                // For single-line examples
-                codeTextarea.value = value.replace(/&quot;/g, '"');
-            }
         });
 
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            spinner.classList.add('visible'); // show spinner
+            showSpinner(['Compiling your code, please wait...', 'This may take a few seconds depending on the code size.']);
 
             try {
                 const formData = new FormData(form);
@@ -292,7 +327,7 @@ let _ =
                 console.error(err);
                 alert('An error occurred.');
             } finally {
-                spinner.classList.remove('visible'); // hide spinner
+                hideSpinner();
             }
         });
     </script>
