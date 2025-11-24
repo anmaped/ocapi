@@ -7,6 +7,14 @@
     <meta name="description"
         content="OCAPI documentation: OCaml to WebAssembly compiler API, usage, endpoints, examples, and security model." />
     <title>OCAPI Documentation · OCaml → WebAssembly Compiler API</title>
+    <!-- Highlight.js -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <!-- and it's easy to individually load additional languages -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+    <script>hljs.highlightAll();</script>
+
     <link rel="stylesheet" href="ocapi.css">
     <style>
         .badge-row {
@@ -210,12 +218,12 @@
 
             <h2 id="examples">Usage Examples</h2>
             <h3>cURL</h3>
-            <pre><code>curl -X POST http://localhost:8080/compile \
+            <pre><code class="language-bash">curl -X POST http://localhost:8080/compile \
   -H "Content-Type: application/json" \
   -d '{"code": "print_endline \"Hello WebAssembly!\""}' \
   --output output.wasm.js.zip
 </code></pre>
-            <pre><code>file output.wasm.js.zip  # should report a Zip binary</code></pre>
+            <pre><code class="language-bash">file output.wasm.js.zip  # should report a Zip binary</code></pre>
             <h3>JavaScript Fetch</h3>
             <pre><code>const src = 'print_endline "Hello from OCAPI"';
 const resp = await fetch('/compile', {
@@ -231,9 +239,92 @@ if (!resp.ok) {
 }
 </code></pre>
 
+            <pre><code class="language-javascript">try {
+    const zip = await JSZip.loadAsync(zipBytes);
+
+    // Find the .wasm.js file in the zip
+    const jsFiles = Object.keys(zip.files).filter(name => name.endsWith('.wasm.js'));
+    if (jsFiles.length === 0) {
+        outputEl.textContent += 'No .wasm.js file found in ZIP.\n';
+        return;
+    }
+
+    const jsFileName = jsFiles[0];
+    console.log(`Found ${jsFileName}.\n`);
+
+    const jsContent = await zip.file(jsFileName).async('text');
+
+    // Handle .wasm file(s) by creating blob URLs for them
+    const wasmFiles = Object.keys(zip.files).filter(name => name.endsWith('.wasm'));
+    const wasmURLs = {};
+    console.log(`Found ${wasmFiles.length} .wasm file(s).\n`);
+    wasmFiles.forEach(file => {
+        console.log(` - ${file}\n`);
+    });
+
+    for (const wasmFileName of wasmFiles) {
+        const wasmData = await zip.file(wasmFileName).async('uint8array');
+        const wasmBlob = new Blob([wasmData], { type: 'application/wasm' });
+        wasmURLs[wasmFileName] = URL.createObjectURL(wasmBlob);
+    }
+
+    // Override fetch to redirect .wasm requests to blob URLs
+    const originalFetch = window.fetch;
+    window.fetch = async function (resource, options) {
+        let urlStr = resource;
+        if (resource instanceof Request) urlStr = resource.url;
+
+        if (wasmURLs[urlStr]) {
+            console.log(`Fetching ${urlStr} from blob URL ${wasmURLs[urlStr]}\n`);
+            // Redirect fetch to the blob URL
+            return originalFetch(wasmURLs[urlStr], options);
+        }
+
+        return originalFetch(resource, options);
+    };
+
+    // Create a blob URL for the JS glue
+    const jsBlob = new Blob([jsContent], { type: 'application/javascript' });
+    const jsURL = URL.createObjectURL(jsBlob);
+
+    // Dynamically import and initialize
+    const module = await import(jsURL).then(mod => {
+        console.log('Wasm module loaded successfully.\n');
+        // module is ready here
+
+        function waitForMonitor() {
+            if (typeof myMonitor !== "undefined") {
+                
+                // call myMonitor ou myLib methods or just return
+
+            } else {
+                if (typeof myLib !== "undefined") { return; }
+
+                setTimeout(waitForMonitor, 1000);
+                console.log("Waiting for myMonitor or myLib export...");
+            }
+        }
+
+        waitForMonitor();
+
+        return mod;
+    });
+
+    // Cleanup
+    URL.revokeObjectURL(jsURL);
+    for (const url of Object.values(wasmURLs)) {
+        URL.revokeObjectURL(url);
+    }
+
+} catch (err) {
+    console.log('Error: ' + err + '\n');
+    console.error(err);
+}
+</code></pre>
+
             <h2 id="errors">Error Handling</h2>
             <p>Errors are returned with HTTP <code class="inline">400 Bad Request</code> and a JSON body:</p>
-            <pre><code>{"error": "Missing 'code' field in JSON"}</code></pre>
+            <pre><code  class="language-json">{"error": "Missing 'code' field in JSON"}</code></pre>
             <p>Compilation failures (syntax errors, etc.) surface as <code
                     class="inline">{"error": "...compiler output..."}</code>.</p>
 

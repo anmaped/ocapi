@@ -5,7 +5,7 @@
     --accent-alt: #3C873A;
     --border: #d8dce3;
     --danger: #c0392b;
-    --code-bg: #272b33;
+    --code-bg: rgba(40, 44, 52, 1);
     --code-fg: #f8f8f2;
     --focus: #ffbf47;
 }
